@@ -837,6 +837,23 @@ class DelegateTestCase(unittest.TestCase):
                 self.assertEqual(result["status"], "failed")
                 self.assertTrue(result["error"])
 
+    def test_workbuddy_json_array_output_uses_final_result(self) -> None:
+        # CodeBuddy 2.x prints the whole transcript as one JSON array.
+        raw = json.dumps([
+            {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "x"}]},
+            {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "draft"}]},
+            {"type": "result", "subtype": "success", "session_id": "wb-1", "result": "done", "is_error": False},
+        ], indent=2)
+        parsed = DELEGATE.parse_runner_output("workbuddy", raw, "", 0, None)
+        self.assertEqual((parsed["status"], parsed["response"], parsed["session_id"]), ("completed", "done", "wb-1"))
+
+        failed = json.dumps([{"type": "result", "session_id": "wb-2", "result": "boom", "is_error": True}])
+        parsed = DELEGATE.parse_runner_output("workbuddy", failed, "", 0, None)
+        self.assertEqual((parsed["status"], parsed["error"]), ("failed", "boom"))
+
+        no_result = json.dumps([{"type": "message", "role": "assistant", "content": []}])
+        self.assertEqual(DELEGATE.parse_runner_output("workbuddy", no_result, "", 0, None)["status"], "failed")
+
     def test_codex_failure_without_detail_is_not_success(self) -> None:
         self.onboard_all()
         proc = self.run_task("codex", extra_env={"FAKE_CODEX_FAIL_NO_DETAIL": "1"})

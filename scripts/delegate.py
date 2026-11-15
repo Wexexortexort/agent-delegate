@@ -861,6 +861,24 @@ def json_object(text: str) -> dict[str, Any] | None:
     return None
 
 
+def final_result_item(text: str) -> dict[str, Any] | None:
+    """Pick the final result from CodeBuddy's JSON-array output.
+
+    CodeBuddy 2.x prints the whole transcript as one JSON array; the last item with
+    type "result" has the same fields as the single object older versions printed.
+    """
+    try:
+        items = json.loads(text.strip())
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(items, list):
+        return None
+    return next(
+        (item for item in reversed(items) if isinstance(item, dict) and item.get("type") == "result"),
+        None,
+    )
+
+
 def json_events(text: str) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
     for line in text.splitlines():
@@ -918,6 +936,8 @@ def parse_runner_output(
 
     if runner in ("claude", "workbuddy", "antigravity"):
         obj = json_object(raw_out)
+        if not obj and runner != "antigravity":
+            obj = final_result_item(raw_out)
         if not obj:
             protocol_ok = False
             error = "CLI did not return a JSON result"
