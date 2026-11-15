@@ -697,6 +697,9 @@ def compose_prompt(prompt: str, workspace: Path, mode: str, files: list[str]) ->
     return "\n".join(lines)
 
 
+DSH_MODEL_PATCH = "<dsh-model-patch>"
+
+
 def build_invocation(
     runner: str,
     binary: str,
@@ -705,6 +708,8 @@ def build_invocation(
     session_id: str | None,
     mode: str,
     dsh_capabilities: dict[str, Any] | None,
+    model: str | None = None,
+    effort: str | None = None,
     prompt_file: Path | None = None,
 ) -> tuple[list[str], str | None, dict[str, str]]:
     env: dict[str, str] = {}
@@ -721,6 +726,7 @@ def build_invocation(
             if mode == "read"
             else ["--dangerously-skip-permissions"]
         )
+        append_model_flags(cmd, model, effort)
         return cmd, prompt, env
 
     if runner == "workbuddy":
@@ -738,6 +744,7 @@ def build_invocation(
         env["CODEBUDDY_CODE_DISABLE_BACKGROUND_TASKS"] = "1"
         if mode == "write":
             env["CODEBUDDY_IS_SANDBOX"] = "1"
+        append_model_flags(cmd, model, effort)
         return cmd, prompt, env
 
     if runner == "antigravity":
@@ -746,6 +753,7 @@ def build_invocation(
             cmd.extend(["--conversation", session_id])
         cmd.extend(["-p", prompt, "--output-format", "json"])
         cmd.extend(["--mode", "plan"] if mode == "read" else ["--dangerously-skip-permissions"])
+        append_model_flags(cmd, model, effort)
         return cmd, stdin_input, env
 
     if runner == "codex":
@@ -757,6 +765,10 @@ def build_invocation(
             cmd = [binary, "exec", "resume", "--json", "--skip-git-repo-check", *permission, session_id, "-"]
         else:
             cmd = [binary, "exec", "--cd", str(workspace), "--json", "--skip-git-repo-check", *permission, "-"]
+        if model:
+            cmd[2:2] = ["-c", f"model={json.dumps(model)}"]
+        if effort:
+            cmd[2:2] = ["-c", f"model_reasoning_effort={json.dumps(effort)}"]
         return cmd, prompt, env
 
     if runner == "grok":
@@ -770,6 +782,7 @@ def build_invocation(
             cmd.extend(["--resume", session_id])
         cmd.extend(["--prompt-file", str(prompt_file), "--output-format", "json"])
         cmd.extend(["--permission-mode", "plan"] if mode == "read" else ["--always-approve"])
+        append_model_flags(cmd, model, effort)
         return cmd, stdin_input, env
 
     if runner == "kimi":
@@ -781,6 +794,7 @@ def build_invocation(
         if session_id:
             cmd.extend(["-S", session_id])
         cmd.extend(["-p", prompt, "--output-format", "stream-json"])
+        append_model_flags(cmd, model, effort)
         return cmd, stdin_input, env
 
     if runner == "opencode":
@@ -801,6 +815,7 @@ def build_invocation(
             "question": "deny",
         }
         env["OPENCODE_PERMISSION"] = json.dumps(permission, separators=(",", ":"))
+        append_model_flags(cmd, model, effort)
         return cmd, stdin_input, env
 
     if runner == "dsh":
@@ -819,10 +834,41 @@ def build_invocation(
             cmd.extend(["--approval-policy", "never"])
         if session_id:
             cmd.extend(["--session-id", session_id])
+        if model or effort:
+            # Placeholder only: execute_run writes the overlay and rewrites this path.
+            cmd.extend(["--patch", DSH_MODEL_PATCH])
         cmd.extend(["--json", "-"])
         return cmd, prompt, env
 
     raise DelegateError(f"Unsupported runner: {runner}")
+
+
+def append_model_flags(cmd: list[str], model: str | None, effort: str | None) -> None:
+    """Add the flags shared by the Claude-style CLIs."""
+    if model:
+        cmd.extend(["--model", model])
+    if effort:
+        cmd.extend(["--effort", effort])
+
+
+def dsh_model_patch(model: str | None, effort: str | None, provider: str) -> str:
+    """YAML overlay selecting the model and reasoning effort for one DSH run.
+
+    DSH matches overlay entries by `id`; an entry with only `name` is ignored.
+    `config` is replaced wholesale by an overlay, so the required provider must
+    be restated and cannot be assumed.
+    """
+    lines = [
+        "- id: agent-default-model",
+        "  name: '@deepseek-ai/dsh-agent-default-model'",
+        "  config:",
+        f"    provider: {json.dumps(provider)}",
+    ]
+    if model:
+        lines.append(f"    model: {json.dumps(model)}")
+    if effort:
+        lines.append(f"    reasoningEffort: {json.dumps(effort)}")
+    return "\n".join(lines) + "\n"
 
 
 def resume_command(runner: str, binary: str, session_id: str | None) -> str | None:
@@ -1127,6 +1173,8 @@ def execute_run(
         args.session,
         args.mode,
         capabilities,
+        getattr(args, "model", None),
+        getattr(args, "effort", None),
         prompt_file=prompt_file,
     )
     safe_command = redact_command(command, prompt)
@@ -1155,6 +1203,13 @@ def execute_run(
         "result": run_dir / "result.json",
     }
     paths["prompt"].write_text(prompt, encoding="utf-8")
+    if runner == "dsh" and DSH_MODEL_PATCH in command:
+        patch = run_dir / "dsh-model.patch.yml"
+        patch.write_text(
+            dsh_model_patch(getattr(args, "model", None), getattr(args, "effort", None), args.dsh_provider),
+            encoding="utf-8",
+        )
+        command = [str(patch) if part == DSH_MODEL_PATCH else part for part in command]
     started_at = now_iso()
     started = time.monotonic()
     raw_out = ""
@@ -1311,6 +1366,13 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--role-slot", type=int, default=1, help="Which saved choice to use for diagnose (1 or 2)")
     run.add_argument("--file", action="append")
     run.add_argument("--session")
+    run.add_argument("--model", help="Override the runner's model for this task")
+    run.add_argument("--effort", help="Override the runner's reasoning effort for this task")
+    run.add_argument(
+        "--dsh-provider",
+        default=os.environ.get("OIL_DELEGATE_DSH_PROVIDER", "deepseek-official"),
+        help="Provider restated in the DSH model overlay (default: deepseek-official)",
+    )
     run.add_argument("--timeout", type=int, default=DEFAULT_RUN_TIMEOUT)
     run.add_argument("--dry-run", action="store_true")
     run.add_argument(

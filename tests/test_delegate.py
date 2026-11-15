@@ -58,6 +58,7 @@ if record:
             "dsh_mode": os.environ.get("DSH_PERMISSION_MODE"),
             "disable_background": os.environ.get("CODEBUDDY_CODE_DISABLE_BACKGROUND_TASKS"),
             "codebuddy_sandbox": os.environ.get("CODEBUDDY_IS_SANDBOX"),
+            "patch": open(args[args.index("--patch") + 1], encoding="utf-8").read() if "--patch" in args else None,
         }}, handle)
 if os.environ.get("FAKE_SLEEP"):
     time.sleep(float(os.environ["FAKE_SLEEP"]))
@@ -205,6 +206,7 @@ class DelegateTestCase(unittest.TestCase):
         extra_env: dict[str, str] | None = None,
         timeout: str = "20",
         prompt: str = "inspect the fixture",
+        extra_args: list[str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
         args = [
             "run",
@@ -218,6 +220,7 @@ class DelegateTestCase(unittest.TestCase):
             prompt,
             "--timeout",
             timeout,
+            *(extra_args or []),
         ]
         if session:
             args.extend(["--session", session])
@@ -606,6 +609,43 @@ class DelegateTestCase(unittest.TestCase):
                 record = self.record_of()
                 self.assertEqual(record["dsh_mode"], expected)
                 self.assertNotIn("--permission-mode", record["argv"])
+
+    def test_model_and_effort_reach_each_runner(self) -> None:
+        self.onboard_all()
+        for runner in RUNNERS:
+            with self.subTest(runner=runner):
+                proc = self.run_task(
+                    runner,
+                    mode="write" if runner == "kimi" else "read",
+                    extra_args=["--model", "test-model", "--effort", "high"],
+                    extra_env={"FAKE_RECORD": str(self.root / "record.json")},
+                )
+                self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+                record = self.record_of()
+                argv = record["argv"]
+                if runner == "codex":
+                    self.assertIn("model=\"test-model\"", argv)
+                    self.assertIn("model_reasoning_effort=\"high\"", argv)
+                elif runner == "dsh":
+                    self.assertIn("--patch", argv)
+                    patch = record["patch"]
+                    self.assertIn("id: agent-default-model", patch)
+                    self.assertIn('provider: "deepseek-official"', patch)
+                    self.assertIn('model: "test-model"', patch)
+                    self.assertIn('reasoningEffort: "high"', patch)
+                else:
+                    self.assertEqual(argv[argv.index("--model") + 1], "test-model")
+                    self.assertEqual(argv[argv.index("--effort") + 1], "high")
+
+    def test_dsh_provider_is_configurable(self) -> None:
+        self.onboard_all()
+        proc = self.run_task(
+            "dsh",
+            extra_args=["--model", "test-model", "--dsh-provider", "custom-provider"],
+            extra_env={"FAKE_RECORD": str(self.root / "record.json")},
+        )
+        self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+        self.assertIn('provider: "custom-provider"', self.record_of()["patch"])
 
     def test_prompt_does_not_forbid_git_operations(self) -> None:
         prompt = DELEGATE.compose_prompt("inspect", self.workspace, "write", [])

@@ -21,7 +21,7 @@
 
 优先级：环境变量 `OIL_DELEGATE_<RUNNER>_BIN` → 配置中的 runner path → PATH → 已知安装目录。所有调用使用 argv 数组，prompt 不经过 shell。
 
-prompt 尽量不放在命令行参数里：claude、workbuddy、codex、dsh、opencode 从 stdin 传入，grok 用 `--prompt-file` 读取本次运行目录里的 `prompt.txt`。Windows 上这些 CLI 大多是 `.cmd`/`.bat` 包装，`cmd.exe` 处理 `%*` 时会在第一个换行处截断参数；prompt 不进命令行，就不受包装格式影响。antigravity 和 kimi 没有可用的 stdin 或文件入口，prompt 仍是 `-p` 的参数，对它们才依赖下面的兜底：启动前解析 npm 生成的包装，找出它真正调用的程序（exe，或 node 加脚本）并直接执行。解析不了的包装仍按原样启动。常规调用不指定模型、provider 或思考强度。
+prompt 尽量不放在命令行参数里：claude、workbuddy、codex、dsh、opencode 从 stdin 传入，grok 用 `--prompt-file` 读取本次运行目录里的 `prompt.txt`。Windows 上这些 CLI 大多是 `.cmd`/`.bat` 包装，`cmd.exe` 处理 `%*` 时会在第一个换行处截断参数；prompt 不进命令行，就不受包装格式影响。antigravity 和 kimi 没有可用的 stdin 或文件入口，prompt 仍是 `-p` 的参数，对它们才依赖下面的兜底：启动前解析 npm 生成的包装，找出它真正调用的程序（exe，或 node 加脚本）并直接执行。解析不了的包装仍按原样启动。常规调用沿用各 CLI 自己的模型与思考强度；需要为单次任务指定时使用 `--model` 和 `--effort`。Claude 风格的 CLI（claude、workbuddy、antigravity、grok、kimi、opencode）收到 `--model` 与 `--effort`；Codex 用 `-c model=` 与 `-c model_reasoning_effort=`；DSH 没有对应 flag，改为写一份只覆盖 `agent-default-model` 条目的 `--patch` overlay。DSH 的 overlay 会整体替换该条目的 `config`，所以必须重写它要求的 `provider`，默认 `deepseek-official`，可用 `--dsh-provider` 或环境变量 `OIL_DELEGATE_DSH_PROVIDER` 改。wrapper 不读取、不保存任何密钥。
 
 省略 `--mode` 时默认 `write`，使用各 CLI 的最高可用权限，尽量避免无人值守任务停在常规审批。只有用户明确要求只读、plan 或限制权限时才使用 `read`。权限参数只影响当前进程，不修改目标 CLI 的永久配置。
 
