@@ -19,7 +19,9 @@
 
 正式 Runner 名为 `claude`、`workbuddy`、`antigravity`、`codex`、`opencode`、`dsh`、`grok`、`kimi`。别名包括 `cc/claude-code`、`wb/codebuddy/cbc`、`agy/anti`、`deepseek/deepseek-harness`、`grok-build`、`kimi-code`。名称不区分大小写；启用、默认 Runner、单次委托和二进制路径配置都使用同一套别名解析，保存时统一转为正式 Runner 名。
 
-优先级：环境变量 `OIL_DELEGATE_<RUNNER>_BIN` → 配置中的 runner path → PATH → 已知安装目录。所有调用使用 argv 数组，prompt 不经过 shell。Windows 上若二进制是 npm 生成的 `.cmd`/`.bat` 包装，启动前会解析出它真正调用的程序（exe，或 node 加脚本）并直接执行，绕开 `cmd.exe` 对 `%*` 的处理；多行 prompt 和换行之后的 flag 因此不会被截断。解析不了的包装仍按原样启动。常规调用不指定模型、provider 或思考强度。
+优先级：环境变量 `OIL_DELEGATE_<RUNNER>_BIN` → 配置中的 runner path → PATH → 已知安装目录。所有调用使用 argv 数组，prompt 不经过 shell。
+
+prompt 尽量不放在命令行参数里：claude、workbuddy、codex、dsh、opencode 从 stdin 传入，grok 用 `--prompt-file` 读取本次运行目录里的 `prompt.txt`。Windows 上这些 CLI 大多是 `.cmd`/`.bat` 包装，`cmd.exe` 处理 `%*` 时会在第一个换行处截断参数；prompt 不进命令行，就不受包装格式影响。antigravity 和 kimi 没有可用的 stdin 或文件入口，prompt 仍是 `-p` 的参数，对它们才依赖下面的兜底：启动前解析 npm 生成的包装，找出它真正调用的程序（exe，或 node 加脚本）并直接执行。解析不了的包装仍按原样启动。常规调用不指定模型、provider 或思考强度。
 
 省略 `--mode` 时默认 `write`，使用各 CLI 的最高可用权限，尽量避免无人值守任务停在常规审批。只有用户明确要求只读、plan 或限制权限时才使用 `read`。权限参数只影响当前进程，不修改目标 CLI 的永久配置。
 
@@ -74,7 +76,7 @@
 ## OpenCode
 
 - 发现：`opencode`，也可用 `OIL_DELEGATE_OPENCODE_BIN` 指向受信任 sidecar。
-- 新建：`opencode run --format json --dir <workspace> <prompt>`；续接增加 `--session <session_id>`。
+- 新建：`opencode run --format json --dir <workspace>`，prompt 从 stdin 传入，不再作为位置参数；续接增加 `--session <session_id>`。opencode 读取管道输入时按原样使用，参数形式在 1.x 中会被额外加一层引号。
 - read：增加 `--agent plan`，并设置进程级 `OPENCODE_PERMISSION`，禁止 edit、bash、external_directory 和 question。
 - write：进程级权限允许 edit、bash 和 external_directory；question 仍拒绝，避免无交互任务等待用户。该方式不依赖新版才有的 `--auto`，同时适用于 1.3.9。
 - 解析：事件及其 `part` 中的 `sessionID/sessionId/session_id`；连接 text 事件的 `part.text`，读取 error 事件。
@@ -98,7 +100,7 @@
 ## Grok Build
 
 - 发现：`grok`，Runner 名为 `grok`，接受 `grok-build`。
-- 新建：`grok --cwd <workspace> -p <prompt> --output-format json`；续接增加 `--resume <sessionId>`。`--session-id` 只用于新建指定 UUID，不用于续接。
+- 新建：`grok --cwd <workspace> --prompt-file <run_dir>/prompt.txt --output-format json`；续接增加 `--resume <sessionId>`。grok headless 不读取管道输入，所以用 `--prompt-file`，文件就是本次运行留档的 prompt。`--session-id` 只用于新建指定 UUID，不用于续接。
 - read：`--permission-mode plan`。
 - write：`--always-approve`，自动批准编辑和命令；deny rules、hooks 和 admin locks 仍然有效。
 - 解析：最终 JSON 的 `sessionId`、`text`、`stopReason`；错误对象使用 `type/message`。

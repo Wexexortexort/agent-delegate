@@ -705,6 +705,7 @@ def build_invocation(
     session_id: str | None,
     mode: str,
     dsh_capabilities: dict[str, Any] | None,
+    prompt_file: Path | None = None,
 ) -> tuple[list[str], str | None, dict[str, str]]:
     env: dict[str, str] = {}
     stdin_input: str | None = None
@@ -759,10 +760,15 @@ def build_invocation(
         return cmd, prompt, env
 
     if runner == "grok":
+        # grok headless ignores piped stdin, but --prompt-file reads the task from a
+        # file, so the text never touches the command line and a .cmd shim cannot
+        # truncate it. The file is the prompt artifact written before launch.
+        if prompt_file is None:
+            raise DelegateError("grok needs a prompt file so the task stays off the command line")
         cmd = [binary, "--cwd", str(workspace)]
         if session_id:
             cmd.extend(["--resume", session_id])
-        cmd.extend(["-p", prompt, "--output-format", "json"])
+        cmd.extend(["--prompt-file", str(prompt_file), "--output-format", "json"])
         cmd.extend(["--permission-mode", "plan"] if mode == "read" else ["--always-approve"])
         return cmd, stdin_input, env
 
@@ -778,12 +784,15 @@ def build_invocation(
         return cmd, stdin_input, env
 
     if runner == "opencode":
+        # opencode reads a piped stdin and appends it to the message, so the task
+        # goes on stdin with no positional argument. That keeps newlines out of the
+        # command line, where a .cmd shim would cut them.
         cmd = [binary, "run", "--format", "json", "--dir", str(workspace)]
         if session_id:
             cmd.extend(["--session", session_id])
         if mode == "read":
             cmd.extend(["--agent", "plan"])
-        cmd.append(prompt)
+        stdin_input = prompt
         permission = {
             "*": "allow",
             "edit": "deny" if mode == "read" else "allow",
@@ -1082,6 +1091,14 @@ def execute_run(
     if not binary_info["installed"]:
         raise DelegateError(binary_info["error"] or f"Runner not installed: {runner}")
     capabilities = probe_dsh_capabilities(binary_info["path"]) if runner == "dsh" else None
+    # grok reads the task from a file, so the file has to exist before the command
+    # is built. The run directory is created early for that reason; a dry run leaves
+    # nothing behind.
+    run_id = f"{dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex[:10]}"
+    run_dir = state_dir / "runs" / run_id
+    if not args.dry_run:
+        run_dir.mkdir(parents=True, exist_ok=False)
+    prompt_file = run_dir / "prompt.txt"
     command, stdin_input, env_updates = build_invocation(
         runner,
         binary_info["path"],
@@ -1090,6 +1107,7 @@ def execute_run(
         args.session,
         args.mode,
         capabilities,
+        prompt_file=prompt_file,
     )
     safe_command = redact_command(command, prompt)
 
@@ -1108,11 +1126,9 @@ def execute_run(
         emit(payload)
         return 0
 
-    run_id = f"{dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex[:10]}"
     run_dir = state_dir / "runs" / run_id
-    run_dir.mkdir(parents=True, exist_ok=False)
     paths = {
-        "prompt": run_dir / "prompt.txt",
+        "prompt": prompt_file,
         "stderr": run_dir / "stderr.log",
         "events": run_dir / "events.jsonl",
         "output": run_dir / "output.md",

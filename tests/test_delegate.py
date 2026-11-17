@@ -41,6 +41,10 @@ if runner == "dsh" and "--help" in args:
         print("--json --session-id --permission-mode --approval-policy")
     raise SystemExit(0)
 stdin_text = sys.stdin.read()
+prompt_file_text = None
+if "--prompt-file" in args:
+    with open(args[args.index("--prompt-file") + 1], encoding="utf-8") as handle:
+        prompt_file_text = handle.read()
 record = os.environ.get("FAKE_RECORD")
 if record:
     with open(record, "w", encoding="utf-8") as handle:
@@ -48,6 +52,7 @@ if record:
             "runner": runner,
             "argv": args,
             "stdin": stdin_text,
+            "prompt_file": prompt_file_text,
             "cwd": os.getcwd(),
             "permission": os.environ.get("OPENCODE_PERMISSION"),
             "dsh_mode": os.environ.get("DSH_PERMISSION_MODE"),
@@ -199,6 +204,7 @@ class DelegateTestCase(unittest.TestCase):
         session: str | None = None,
         extra_env: dict[str, str] | None = None,
         timeout: str = "20",
+        prompt: str = "inspect the fixture",
     ) -> subprocess.CompletedProcess[str]:
         args = [
             "run",
@@ -209,7 +215,7 @@ class DelegateTestCase(unittest.TestCase):
             "--mode",
             mode,
             "--prompt",
-            "inspect the fixture",
+            prompt,
             "--timeout",
             timeout,
         ]
@@ -426,11 +432,16 @@ class DelegateTestCase(unittest.TestCase):
                     self.assertFalse(any("inspect the fixture" in part for part in result["command"]))
                     if runner in ("codex", "dsh"):
                         self.assertEqual(result["command"][-1], "-")
-                    elif runner in ("claude", "workbuddy"):
+                    if runner in ("claude", "workbuddy", "codex", "dsh", "opencode"):
                         self.assertNotIn("<prompt>", result["command"])
                         self.assertIn("inspect the fixture", record["stdin"])
+                    elif runner == "grok":
+                        self.assertNotIn("<prompt>", result["command"])
+                        self.assertNotIn("-p", record["argv"])
+                        self.assertIn("inspect the fixture", record["prompt_file"])
                     else:
                         self.assertIn("<prompt>", result["command"])
+                        self.assertEqual(record["stdin"], "")
                     for artifact in (result["output_path"], result["events_path"], result["raw_stdout_path"], result["stderr_path"]):
                         self.assertTrue(Path(artifact).is_file())
                     if runner == "opencode":
@@ -603,6 +614,33 @@ class DelegateTestCase(unittest.TestCase):
         self.assertNotIn("git push", prompt)
         self.assertNotIn("publish", prompt)
         self.assertIn("Final report", prompt)
+
+    def test_multiline_prompt_never_touches_the_command_line(self) -> None:
+        # The prompt carries a newline and cmd.exe metacharacters. On Windows the
+        # fake CLIs sit behind a .cmd wrapper, so any prompt passed as an argument
+        # would be cut at the newline. Every runner with a stdin or file channel
+        # must deliver it whole and keep the flags that follow intact.
+        self.onboard_all()
+        prompt = 'first line & echo HACKED\nsecond line %PATH% "quoted" | more'
+        channels = {
+            "claude": "stdin",
+            "workbuddy": "stdin",
+            "codex": "stdin",
+            "dsh": "stdin",
+            "opencode": "stdin",
+            "grok": "prompt_file",
+        }
+        for runner, channel in channels.items():
+            with self.subTest(runner=runner):
+                record_path = self.root / "record.json"
+                proc = self.run_task(
+                    runner, mode="write", prompt=prompt, extra_env={"FAKE_RECORD": str(record_path)}
+                )
+                self.assertEqual(proc.returncode, 0, msg=proc.stderr)
+                record = self.record_of()
+                self.assertIn("second line %PATH% \"quoted\" | more", record[channel])
+                self.assertFalse(any("second line" in part for part in record["argv"]))
+                self.assertNotIn("HACKED", " ".join(record["argv"]))
 
     def test_dry_run_has_no_process_or_run_artifacts(self) -> None:
         self.onboard_all()
