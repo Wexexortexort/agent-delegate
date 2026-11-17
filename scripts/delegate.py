@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 if sys.version_info < (3, 10):
-    sys.stderr.write("[ERROR] oil-delegate requires Python 3.10 or newer.\n")
+    sys.stderr.write("[ERROR] agent-delegate requires Python 3.10 or newer.\n")
     sys.exit(1)
 
 SCHEMA_VERSION = 1
@@ -679,7 +679,7 @@ def compose_prompt(prompt: str, workspace: Path, mode: str, files: list[str]) ->
     lines = [
         prompt.strip(),
         "",
-        "[oil-delegate runtime context]",
+        "[agent-delegate runtime context]",
         f"Workspace: {workspace}",
         f"Mode: {mode}",
     ]
@@ -821,7 +821,7 @@ def build_invocation(
     if runner == "dsh":
         capabilities = dsh_capabilities or {}
         if not capabilities.get("json"):
-            raise DelegateError("This DSH headless installation lacks --json; upgrade DSH to use oil-delegate")
+            raise DelegateError("This DSH headless installation lacks --json; upgrade DSH to use agent-delegate")
         if session_id and not capabilities.get("resume"):
             raise DelegateError("This DSH headless installation lacks --session-id; upgrade DSH to resume sessions")
         cmd = [binary, "--profile", "headless"]
@@ -1338,7 +1338,7 @@ def cmd_run(args: argparse.Namespace, state_dir: Path) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Delegate one task to an external CLI agent")
-    parser.add_argument("--home", help="Override the oil-delegate state directory")
+    parser.add_argument("--home", help="Override the agent-delegate state directory")
     sub = parser.add_subparsers(dest="command", required=True)
 
     onboard = sub.add_parser("onboard", help="Scan and configure external CLI runners")

@@ -1,12 +1,12 @@
 ---
-name: oil-delegate
-description: "把边界清楚的单次任务委托给 Claude Code（cc）、WorkBuddy（wb）、Antigravity（agy）、Codex、OpenCode、DeepSeek Harness（dsh）、Grok Build（grok）或 Kimi Code（kimi）CLI，返回结构化结果并续接原会话；处理首次静默扫描、启用执行器与默认选择，并可按用途（代码审查、方案挑刺、疑难会诊、实现）记住各自交给谁。用户明确要求 oil-delegate、统一调用或用上述全称/别名继续这些外部 CLI Agent 时使用；不用于普通直接问答或显式 /codex。"
+name: agent-delegate
+description: "把边界清楚的单次任务委托给 Claude Code（cc）、WorkBuddy（wb）、Antigravity（agy）、Codex、OpenCode、DeepSeek Harness（dsh）、Grok Build（grok）或 Kimi Code（kimi）CLI，返回结构化结果并续接原会话；处理首次静默扫描、启用执行器与默认选择，并可按用途（代码审查、方案挑刺、疑难会诊、实现）记住各自交给谁。用户明确要求 agent-delegate 或 oil-delegate、统一调用或用上述全称/别名继续这些外部 CLI Agent 时使用；不用于普通直接问答或显式 /codex。"
 license: MIT
 metadata:
   version: "0.6.0"
 ---
 
-# oil-delegate
+# agent-delegate
 
 `SKILL_DIR` 指当前 Skill 的绝对目录；`<python>` 指 Python 3.10+（macOS/Linux 通常为 `python3`，Windows 通常为 `py -3`）；`DELEGATE` 是 `<python> "$SKILL_DIR"/scripts/delegate.py` 的简写。
 
@@ -85,7 +85,7 @@ DELEGATE run --runner <名称> \
 
 ### 按角色委托
 
-`oil-plan`、`oil-code-review`、`oil-bug-fix` 按用途委托时使用 `--role`，由用户保存的偏好决定交给谁：
+其他 Skill（如 `oil-plan`、`oil-code-review`、`oil-bug-fix`）按用途委托时使用 `--role`，由用户保存的偏好决定交给谁：
 
 | 角色 | 用途 | 权限 |
 | --- | --- | --- |
@@ -103,7 +103,7 @@ DELEGATE run --role review --workspace "<项目绝对路径>" --prompt "<审查�
 - 返回 `USE_HOST`（退出码 13）：用户偏好由当前 Agent 自己做。改用宿主的全新子 Agent，按角色权限完成，不调用外部 CLI。
 - 显式传 `--runner` 时以它为准，权限仍由角色决定。
 - 用户说“以后 review 都用 codex”这类话时，直接用 `config --set-role` 保存；`--set-role review=ask` 清除。`review` 或 `critique` 与 `implement` 选了同一个 runner 时，配置结果会带 `warnings`，转告用户换一个更能保证独立视角。
-- 角色偏好是个人配置，保存在 oil-delegate 自己的配置目录，不写进项目文件。
+- 角色偏好是个人配置，保存在本工具自己的配置目录（`~/.oil-delegate`，沿用上游路径），不写进项目文件。
 
 ### 3. 续接原会话
 

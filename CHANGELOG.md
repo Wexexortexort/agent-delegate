@@ -2,6 +2,10 @@
 
 本文件记录 agent-delegate 相对上游 [oil-oil/oil-delegate](https://github.com/oil-oil/oil-delegate) 的改动。上游自身的更新会定期合并进来，不在这里重复列出。
 
+## 2026-11-17（改名）
+
+- Skill 改名为 `agent-delegate`，可以和原版 `oil-delegate` 同时安装。配置目录 `~/.oil-delegate` 和环境变量 `OIL_DELEGATE_*` 保持不变，已有配置不需要重新设置。
+
 ## 2026-11-17
 
 ### 修复

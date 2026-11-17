@@ -75,7 +75,9 @@ Windows 上已用 WorkBuddy、Codex、DeepSeek Harness 跑过真实任务；其�
 npx skills add Wexexortexort/agent-delegate
 ```
 
-安装后重新加载 Skill 即可。为了和原版的配套 Skill（如 `oil-plan`、`oil-code-review`）保持兼容，Skill 名称沿用 `oil-delegate`，所以和原版二选一安装即可。
+安装后重新加载 Skill 即可。Skill 名称是 `agent-delegate`，可以和原版 `oil-delegate` 同时安装，互不影响。
+
+两者共用同一个配置目录（`~/.oil-delegate`），在一边选好的 Agent 和偏好，另一边也能直接用。原作者的配套 Skill（如 `oil-plan`、`oil-code-review`）按名字查找 `oil-delegate`，不会自动调用本工具。
 
 ## 第一次使用
 
