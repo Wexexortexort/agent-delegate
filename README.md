@@ -1,18 +1,15 @@
 # agent-delegate
 
-**在 Windows 上开箱即用的 Agent 跨端 CLI 委派工具。** 一句话把任务交给 Claude Code、DeepSeek Harness、WorkBuddy、Codex 等本机 Agent，结果带回当前对话，还能接着追问。基于 [oil-oil/oil-delegate](https://github.com/oil-oil/oil-delegate)，针对 Windows 做了深度适配。
+**开箱即用的 Agent 跨端 CLI 委派工具，对 Windows 做了适配。** 一句话把任务交给 Claude Code、DeepSeek Harness、WorkBuddy、Codex 等本机 Agent，结果带回当前对话，还能接着追问。基于 [oil-oil/oil-delegate](https://github.com/oil-oil/oil-delegate)。
 
-## 为什么需要这个分支
+## 和原版有什么不同
 
-原版在 macOS 上实测，Windows 上有几处会让委派任务直接失败或卡住。本分支已全部修复：
+功能和用法与原版一致，主要差别是 Windows 上的兼容性和一些小的增强：
 
-| Windows 上的问题 | 现象 | 本分支的处理 |
-| --- | --- | --- |
-| 多行任务被截断 | Windows 上的 CLI 多半是 `.cmd` 套壳，任务里一换行，后面的内容和参数全部丢失，Agent 收到半句话，还可能不按 JSON 回复 | 任务尽量不进命令行：8 个 Agent 里有 6 个改从管道或文件接收任务，套壳格式怎么变都不受影响；剩下 2 个自动找到套壳背后的真实程序直接启动 |
-| 中文系统编码出错 | 中文 Windows 默认 GBK 编码，读取 DeepSeek Harness 的能力探测结果时出现乱码，被误判成“不支持” | 统一按 UTF-8 读取，读不懂的字符替换掉而不是报错 |
-| WorkBuddy 结果读不出来 | 新版 CodeBuddy 输出的是 JSON 数组，原版只认单个对象，任务成功也被判失败 | 两种格式都能识别 |
+- **Windows 兼容**：任务文字尽量不经过命令行传递，避免 Windows 环境下长任务、多行任务传不完整；中文系统下也能正确读取各 Agent 的输出。
+- **单次任务可指定模型**：用 `--model`、`--effort` 给某一次任务换模型或思考强度，不影响各 Agent 自己的默认设置。
 
-另外新增一项能力：可以给单次任务指定模型和思考强度（`--model`、`--effort`），不改动各 Agent 自己的默认设置。
+每次改了什么见 [CHANGELOG](CHANGELOG.md)。
 
 ## 能用来做什么
 
@@ -43,18 +40,18 @@
 
 全名或简称都可以，不区分大小写：
 
-| Agent | 简称与别名 | Windows 实测 |
-| --- | --- | --- |
-| Claude Code | `cc`、`claude`、`claude-code` | 启动方式已验证 |
-| WorkBuddy | `wb`、`workbuddy`、`codebuddy`、`cbc` | ✅ 真实任务 |
-| Codex | `codex` | ✅ 真实任务 |
-| DeepSeek Harness | `dsh`、`deepseek`、`deepseek-harness` | ✅ 真实任务 |
-| Antigravity | `agy`、`antigravity` | 未实测 |
-| OpenCode | `opencode` | 未实测 |
-| Grok Build | `grok`、`grok-build` | 未实测 |
-| Kimi Code | `kimi`、`kimi-code` | 未实测 |
+| Agent | 简称与别名 |
+| --- | --- |
+| Claude Code | `cc`、`claude`、`claude-code` |
+| WorkBuddy | `wb`、`workbuddy`、`codebuddy`、`cbc` |
+| Codex | `codex` |
+| DeepSeek Harness | `dsh`、`deepseek`、`deepseek-harness` |
+| Antigravity | `agy`、`antigravity` |
+| OpenCode | `opencode` |
+| Grok Build | `grok`、`grok-build` |
+| Kimi Code | `kimi`、`kimi-code` |
 
-“未实测”的 Agent 按官方文档适配，并有自动化测试覆盖，但还没有在真机上跑过。欢迎反馈。
+Windows 上已用 WorkBuddy、Codex、DeepSeek Harness 跑过真实任务；其余 Agent 按官方文档适配并有自动化测试覆盖。遇到问题欢迎反馈。
 
 ## 安装
 
@@ -78,7 +75,7 @@
 npx skills add Wexexortexort/agent-delegate
 ```
 
-安装后重新加载 Skill 即可。Skill 内部名称仍是 `oil-delegate`，方便和上游保持同步。如果你同时装了原版，请只保留一个。
+安装后重新加载 Skill 即可。为了和原版的配套 Skill（如 `oil-plan`、`oil-code-review`）保持兼容，Skill 名称沿用 `oil-delegate`，所以和原版二选一安装即可。
 
 ## 第一次使用
 
@@ -116,7 +113,7 @@ macOS / Linux 把 `py -3` 换成 `python3`。
 
 ## 致谢与上游
 
-本项目是 [oil-oil/oil-delegate](https://github.com/oil-oil/oil-delegate) 的 Windows 深度适配独立分支。核心设计、多 Agent 适配和交互流程都来自原作者 [oil-oil](https://github.com/oil-oil)，感谢原作者的开源工作。
+本项目是 [oil-oil/oil-delegate](https://github.com/oil-oil/oil-delegate) 的独立分支，在原版基础上补充了 Windows 适配。核心设计、多 Agent 适配和交互流程都来自原作者 [oil-oil](https://github.com/oil-oil)，感谢原作者的开源工作。
 
 本分支会持续同步上游更新。其中通用的修复也会以 PR 的形式提交给上游，例如 [oil-oil/oil-delegate#9](https://github.com/oil-oil/oil-delegate/pull/9)。
 
