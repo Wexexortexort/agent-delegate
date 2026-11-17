@@ -97,6 +97,8 @@ npx skills add Wexexortexort/agent-delegate
 - **权限**：普通任务默认使用各 Agent 的最高权限，避免无人值守时卡在审批上。这意味着 Agent 可以改文件、执行命令。重要项目请先限定范围，事后检查改动并重跑测试。需要只读时直接说“只读”。
 - **验收**：Agent 自己说“完成了”不算数，以实际改动和测试结果为准。
 
+关于什么场景适合派发子 Agent、不同角色怎么分工，可以参考 Oil Book 里的[《怎样用好子 Agent》](https://book.oiloil.org/articles/subagent-workflow?utm_source=github&utm_medium=referral&utm_campaign=oil-delegate-readme)。
+
 <details>
 <summary>维护、测试与排查</summary>
 
