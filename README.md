@@ -2,18 +2,16 @@
   <b>简体中文</b> · <a href="README.en.md">English</a>
 </p>
 
-<p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="agent-delegate：在一个对话里，把任务交给合适的 Agent。">
-</p>
-
-<h3 align="center">在一个对话里调度多个编程 Agent。</h3>
+<h3 align="center">在一个对话里调度多个 Agent。</h3>
 
 <p align="center">
-  让 Claude Code 里的 Opus 做主脑，负责设计和规划；<br>
-  把具体的活儿交给 Codex、DeepSeek Harness、WorkBuddy 分头去做，结果自动回到当前对话。
+  让能力更强的模型做主脑（比如 Claude Code + Opus 5.5），负责设计、规划和验收；<br>
+  具体的活儿交给 Codex、DeepSeek Harness 等分头去做，结果自动回到当前对话。<br>
+  验收不通过，主脑会指出问题，让它在原会话里接着返工。
 </p>
 
 <p align="center">
+  <a href="https://github.com/Wexexortexort/agent-delegate/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/Wexexortexort/agent-delegate/actions/workflows/tests.yml/badge.svg"></a>
   <img alt="Tested on Windows 10/11" src="https://img.shields.io/badge/%E5%AE%9E%E6%B5%8B%E7%8E%AF%E5%A2%83-Windows%2010%2F11-0078D4">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-3776AB">
   <img alt="8 Agents" src="https://img.shields.io/badge/%E6%94%AF%E6%8C%81-8%20%E4%B8%AA%20CLI%20Agent-4D6BFE">
@@ -211,4 +209,4 @@ macOS / Linux 把 `py -3` 换成 `python3`。
 
 ## License
 
-[MIT License](LICENSE)。原作者版权声明保留在 LICENSE 中。图标与配图来源见[素材说明](assets/readme/NOTICE.md)。
+[MIT License](LICENSE)。原作者版权声明保留在 LICENSE 中。配图来源见[素材说明](assets/readme/NOTICE.md)。

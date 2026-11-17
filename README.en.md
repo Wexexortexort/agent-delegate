@@ -2,18 +2,16 @@
   <a href="README.md">简体中文</a> · <b>English</b>
 </p>
 
-<p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="agent-delegate: hand a task to the right agent from a single conversation.">
-</p>
-
-<h3 align="center">Orchestrate multiple coding agents from one conversation.</h3>
+<h3 align="center">Orchestrate multiple agents from one conversation.</h3>
 
 <p align="center">
-  Let Opus in Claude Code be the lead: design and planning.<br>
-  Hand the actual work to Codex, DeepSeek Harness or WorkBuddy, and get the results back in the same conversation.
+  Let a stronger model be the lead (for example, Claude Code + Opus 5.5): it designs, plans and reviews the work.<br>
+  Hand the actual work to Codex, DeepSeek Harness and others, and the results come back to the same conversation.<br>
+  If the work does not pass review, the lead points out what is wrong and the agent fixes it in the same session.
 </p>
 
 <p align="center">
+  <a href="https://github.com/Wexexortexort/agent-delegate/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/Wexexortexort/agent-delegate/actions/workflows/tests.yml/badge.svg"></a>
   <img alt="Tested on Windows 10/11" src="https://img.shields.io/badge/tested%20on-Windows%2010%2F11-0078D4">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-3776AB">
   <img alt="8 Agents" src="https://img.shields.io/badge/supports-8%20CLI%20agents-4D6BFE">
@@ -211,4 +209,4 @@ Compared with the original, this project mainly adds Windows compatibility (mult
 
 ## License
 
-[MIT License](LICENSE). The original author's copyright notice is preserved in the LICENSE file. See the [asset notice](assets/readme/NOTICE.md) for icon and illustration sources.
+[MIT License](LICENSE). The original author's copyright notice is preserved in the LICENSE file. See the [asset notice](assets/readme/NOTICE.md) for illustration sources.
